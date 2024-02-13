@@ -263,7 +263,7 @@ void Depth::inward(TokenType next) {
     depth++;
     if (direc == 1) { 
         inward_consecutive = true;
-        if (outward_consecutive == true && depth > 0
+        if (outward_consecutive == true
         ) { dual = true; }
     }
     else { inward_consecutive = false; outward_consecutive = false; }
@@ -273,7 +273,7 @@ void Depth::outward(TokenType next) {
     depth--;
     if (direc == -1) {
         outward_consecutive = true;
-        if (inward_consecutive == true && depth > 0
+        if (inward_consecutive == true
         ) {
             dual = true;
             //cout << "TokenType: " << next << endl;
