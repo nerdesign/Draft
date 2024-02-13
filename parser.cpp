@@ -340,16 +340,18 @@ void Parser::match(std::string raw_str) {
     int start = 0; // Starting Position
     bool flag = false, restart_available = false;
     int restart_pos = 0;
+    vector<REG*> restart_temp;
 
     // (2) Iteration
     for (auto iter: strs) {
-        //cout << "Parse target: " << iter << endl;
+//arse target: " << iter << endl;
         start = restart_pos = 0;
         flag = restart_available = false;
         
         for (int i = 0; i < iter.length(); i++) {
             //cout << "Iteration (" << iter << ")" << " - " << iter.at(i) << ", " << i << endl;
             //cout << "Current accepted" << endl;
+
             for (auto reg: curr_accepted) {
                 //cout << "For Loop: " <<  reg->get_ID() << ", start = " << start << ", i = " << i << endl;
                 if (match_substr(reg, iter, start, i) == true) {
@@ -377,9 +379,9 @@ void Parser::match(std::string raw_str) {
                     // No match result -> Print "ERROR" and Exit
                     if (flag == true && restart_available == false) { print_match(); cout << "ERROR" << endl; exit(1); }
                     //cout << "Restarts!" << " i = " << i << ", temp_accepted = " << temp_accepted.size() << endl;
-                    real_accepted.push_back(curr_accepted.front());
+                    real_accepted.push_back(restart_temp.front());
                     match_str.push_back(iter.substr(start, i - start));
-                    //cout << "Add cut: " << temp_accepted.front() << ", " << iter.substr(start, i - start) << endl;
+                    //cout << "Add cut: " << restart_temp.front()->get_ID() << ", " << iter.substr(start, i - start) << endl;
                     start = i--; // New starting position
                     flag = true;
                     restart_available = false;
@@ -388,7 +390,7 @@ void Parser::match(std::string raw_str) {
                     continue;
                 }
                 else if (restart_pos == 0) { flag = true; restart_available = false; }
-            } else { flag = false; restart_available = true; restart_pos = i + 1; }
+            } else { flag = false; restart_available = true; restart_pos = i + 1; restart_temp = temp_accepted; }
 
             curr_accepted.clear(); // Throw out previous results
             //curr_accepted = temp_accepted; // Copy the iteration set
