@@ -7,6 +7,10 @@
  * of this file online
  *
  */
+
+// Name: Mark Ahn
+// ID: 1226405754
+// Course: CSE 340
 #include <iostream>
 #include <cstdlib>
 #include "parser.h"
@@ -17,7 +21,7 @@ using namespace std;
 // modified to produce the appropriate message
 void Parser::syntax_error()
 {
-    cout << "SYNTAX ERROR\n";
+    cout << "SNYTAX ERORR\n";
     exit(1);
 }
 
@@ -36,6 +40,10 @@ Token Parser::expect(TokenType expected_type)
     return t;
 }
 
+// Parses an expression from the input stream and constructs a REG (Regular Expression Graph) object
+// based on the syntax of the expression. Handles parentheses for grouping, operators like dot (.)
+// for concatenation, OR for alternatives, and STAR (*) for repetition.
+// The method utilizes depth tracking to manage parentheses and constructs the graph accordingly.
 REG* Parser::parse_expr()
 {
     REG* res = nullptr;
@@ -43,13 +51,37 @@ REG* Parser::parse_expr()
     std::vector<REG*> parallel;
     Token t;
     t = lexer.peek(1);
-    TokenType prev = END_OF_FILE;
+    TokenType prev = END_OF_FILE, next;
+
+    if (
+        t.token_type == COMMA ||
+        t.token_type == HASH ||
+        t.token_type == INPUT_TEXT
+    ) {
+        //cout << "SNYTAX ERORR" << endl;
+        //cout << "SYNTAX ERORR" << endl;
+        cout << tokenID << " HAS A SYNTAX ERROR IN ITS EXPRESSION" << endl;
+        exit(1);
+    } 
 
     while (t.token_type != COMMA && t.token_type != HASH) {
-        //if (res) res->print_node();
+
         t = lexer.GetToken();
         if (t.token_type == LPAREN) {
             /* Left Parenthesis */
+            next = lexer.peek(1).token_type;
+            if (
+                next != LPAREN &&
+                next != RPAREN &&
+                next != UNDERSCORE &&
+                next != SYMBOL &&
+                next != CHAR
+            ) { 
+                cout << tokenID << " HAS A SYNTAX ERROR IN ITS EXPRESSION" << endl;
+                exit(1);
+                //syntax_error();
+            }
+
             dep.inward(lexer.peek(1).token_type);
             res = parse_expr();
             if (lexer.peek(1).token_type == HASH || lexer.peek(1).token_type == COMMA
@@ -63,7 +95,25 @@ REG* Parser::parse_expr()
             }
         }
         else if (t.token_type == RPAREN) {
+            next = lexer.peek(1).token_type;
+            if (
+                prev == OR ||
+                prev == DOT ||
+                (
+                next == UNDERSCORE ||
+                next == SYMBOL ||
+                next == CHAR 
+                )
+            ) { 
+                cout << "SNYTAX ERORR" << endl;
+                //cout << tokenID << " HAS A SYNTAX ERROR IN ITS EXPRESSION" << endl;
+                exit(1);
+                //cout << "Prev, Next: " << prev << ", " << next << endl;
+                //syntax_error();
+            }
+
             dep.outward(lexer.peek(1).token_type);
+            
             if (!res) {
                 cout << tokenID << " HAS A SYNTAX ERROR IN ITS EXPRESSION" << endl;
                 exit(1);
@@ -72,9 +122,29 @@ REG* Parser::parse_expr()
             break;
         }
         else if (t.token_type == DOT) {
+            if (
+                next == STAR ||
+                next == COMMA ||
+                next == HASH ||
+                next == OR
+            ) {
+                cout << "SNYTAX ERORR" << endl;
+                //cout << tokenID << " HAS A SYNTAX ERROR IN ITS EXPRESSION" << endl;
+                exit(1);    
+            }
             /* DOT */ series.push_back(res);
         }
         else if (t.token_type == OR) {
+            next = lexer.peek(1).token_type;
+            if (
+                next == STAR ||
+                next == COMMA ||
+                next == HASH ||
+                next == DOT
+            ) {
+                cout << tokenID << " HAS A SYNTAX ERROR IN ITS EXPRESSION" << endl;
+                exit(1);    
+            }
             /* OR */ parallel.push_back(res);
         }
         else if (t.token_type == STAR) {
@@ -82,13 +152,16 @@ REG* Parser::parse_expr()
                 cout << "SNYTAX ERORR" << endl;
                 exit(1);
             }
-            Token tmps;
-            tmps = lexer.peek(1);
+            next = lexer.peek(1).token_type;
             if (
-                tmps.token_type != HASH &&
-                tmps.token_type != COMMA &&
-                tmps.token_type != RPAREN
-            ) { cout << "SNYTAX ERORR" << endl; exit(1); }
+                next != COMMA &&
+                //next != DOT &&
+                next != RPAREN &&
+                next != HASH
+            ) { 
+                cout << "SNYTAX ERORR" << endl;
+                exit(1);
+            }
             
             dep.direc = 0;
             /* STAR */
@@ -111,6 +184,20 @@ REG* Parser::parse_expr()
             res->accept = node_next;
         }
         else if (t.token_type == CHAR || t.token_type == UNDERSCORE) {
+            next = lexer.peek(1).token_type;
+            if (
+                next == LPAREN ||
+                next == UNDERSCORE ||
+                next == CHAR ||
+                next == STAR ||
+                next == DOT ||
+                next == OR
+            ) { 
+                cout << tokenID << " HAS A SYNTAX ERROR IN ITS EXPRESSION" << endl;
+                exit(1);
+                //syntax_error();
+            }
+
             /* CHAR */
             REG* tmp = new REG(); // Construct REG
             // Make 2 RegNodes for this CHAR
@@ -126,16 +213,19 @@ REG* Parser::parse_expr()
         else if (t.token_type == ID) {
             cout << tokenID << " HAS A SYNTAX ERROR IN ITS EXPRESSION" << endl;
             exit(1);
-            // syntax_error();
         }
         prev = t.token_type;
         t = lexer.peek(1);
+        if (t.token_type == INPUT_TEXT || t.token_type == END_OF_FILE) {
+            cout << "SNYTAX ERORR" << endl;
+            exit(1);
+        }
     }
 
     /* Merging all the other REG into one REG. */
     if (series.size() > 0 && parallel.size() > 0) { cout << "Size not matched" << endl; syntax_error(); }
     else if (series.size() > 0) {
-        //res->print_node();
+
         if (res != nullptr) { series.push_back(res); }
         REG *tmp = new REG();
         for (auto i : series) {
@@ -156,6 +246,8 @@ REG* Parser::parse_expr()
         }
         res = tmp;
     }
+
+
     else if (parallel.size() > 0) {
         if (res != nullptr) { parallel.push_back(res); }
         /* Tieing parallel REGs into one REG. */
@@ -177,10 +269,12 @@ REG* Parser::parse_expr()
 
     if (res) { res->set_line(t.line_no); }
 
-    //res->print_node();
     return res;
 }
 
+// Parsing a single token and its associated regular expression from the input.
+// It validates the token identifier, then parses and constructs the REG object for the expression.
+// parse_token() also handles syntax validation for the expression.
 int Parser::parse_token()
 {
     dep.reset();
@@ -205,36 +299,58 @@ int Parser::parse_token()
     return 2;
 }
 
+// Parsing a list of tokens and their expressions until a HASH (#) token is encountered.
+// It uses the parse_token method to parse each token and expects a comma to separate tokens.
 int Parser::parse_token_list()
 {
-    while (parse_token() != 1) { expect(COMMA); continue; }
+    TokenType next;
+    while (parse_token() != 1) { 
+
+        if (dep.depth != 0) { cout << tokenID << "HAS A SYNTAX ERROR IN ITS EXPRESSION" << endl; exit(1); }
+        next = lexer.peek(1).token_type;
+        if (next == INPUT_TEXT) { cout << "SNYTAX ERORR" << endl; exit(1); }
+        expect(COMMA); continue;    
+
+        }
+
     Token t = expect(HASH);
     return 0;
 }
 
+// Initiating the parsing of the tokens section of the input.
+// This is the entry point for parsing the definitions of tokens and their associated regular expressions.
 int Parser::parse_tokens_section()
 {
     parse_token_list();
-    if (semantic == true) { exit(1); }
+    
+    if (semantic == true) {
+        for (auto i: semantic_text) { cout << i << endl; }
+        exit(1);
+    }
     return 0;
 }
 
+// The main entry point for the parser. It starts the parsing process by first parsing
+// the tokens section and then proceeding to process the input text against the parsed tokens.
 void Parser::parse_input()
 {
     semantic = false;
     parse_tokens_section();
-    check_epsilon();
-    //for (auto i : regex) { cout << "[Check REG]" << endl; i->print_node(); }
     Token t;
     t = lexer.GetToken();
+    if (t.token_type != INPUT_TEXT) { cout << "SNYTAX ERORR" << endl; exit(1); }
+    check_epsilon();
+
     while (t.token_type != END_OF_FILE) { 
         if (t.token_type != INPUT_TEXT) { cout << "SNYTAX ERORR" << endl; exit(1); }
+        if (lexer.peek(1).token_type != END_OF_FILE) { cout << "SNYTAX ERORR" << endl; exit(1); }
         if (check_text(t) == false) { cout << "SNYTAX ERORR" << endl; exit(1); }
         match(t.lexeme);
         t = lexer.GetToken();
     }
 }
 
+// Checks when if the given token text is properly enclosed in the quotes.
 bool Parser::check_text(Token& t) {
     string tmp = t.lexeme;
     if (tmp.front() != '"') { return false; }
@@ -247,10 +363,12 @@ bool Parser::check_text(Token& t) {
 //===================================
 
 /*  Class Depth     */
+// Depth class constructor initializes member variables to default values.
 Depth::Depth() : 
     depth(0), direc(0), inward_consecutive(false), 
     outward_consecutive(false), dual(false), ID("NULL") {}
 
+// Resets the Depth object's state to its initial values.
 void Depth::reset() {
     depth = 0;
     direc = 0;
@@ -259,36 +377,43 @@ void Depth::reset() {
     ID = "NULL";
 }
 
+// Adjusts depth tracking for an inward movement, typically when encountering an opening parenthesis.
 void Depth::inward(TokenType next) { 
     depth++;
     if (direc == 1) { 
         inward_consecutive = true;
-        if (outward_consecutive == true
+        if (outward_consecutive == true && depth > 0
         ) { dual = true; }
     }
     else { inward_consecutive = false; outward_consecutive = false; }
     direc = 1;
 }
+
+// Adjusts depth tracking for an outward movement, typically when encountering a closing parenthesis.
 void Depth::outward(TokenType next) { 
     depth--;
     if (direc == -1) {
         outward_consecutive = true;
-        if (inward_consecutive == true
+        if (inward_consecutive == true && depth > 0
         ) {
             dual = true;
-            //cout << "TokenType: " << next << endl;
+
             make_error(ID);
         }
     }
     else { outward_consecutive = false; }
     direc = -1;
 }
+
+// Generates a syntax error for the Depth object, typically it is called when an inconsistency is found.
 void Depth::make_error(std::string ID) {
     cout << ID << " HAS A SYNTAX ERROR IN ITS EXPRESSION" << endl;
     exit(1);
 }
 
 /*  Class Parser    */
+// Checking for the presence of epsilon(empty string) in the regular expressions parsed.
+// Epsilon transitions are not allowed as tokens.
 void Parser::check_epsilon() {
     bool sum = false;
     for (auto i: regex) {
@@ -298,28 +423,49 @@ void Parser::check_epsilon() {
             cout << i->get_ID() << " ";
         }
     }
-    if (sum == true) { cout << endl; exit(1); }
+    if (sum == true) { 
+        //cout << endl;
+        exit(1); }
     return;
 }
+
+// Determines if the given REG object can accept the epsilon (empty string).
 bool Parser::check_epsilon_reg(REG* reg) {
     int res = reg->check_epsilon_node(reg->start);
     if (res > 0) { return true; }
     return false;
 }
 
+// Verifies the uniqueness of the token identifier and adds the REG object to the list of parsed expressions.
 void Parser::check_regex(REG* reg) {
+    string tmp;
+    //bool copy = false;
     for (auto i : regex) {
+        //copy = false;
         // (1) Have the same ID
         if (i->get_ID() == reg->get_ID()) {
-            cout << "Line " << reg->get_line() << ": " << 
-            i->get_ID() << " already declared on line " << i->get_line() << endl;
+            tmp = "Line ";
+            tmp += std::to_string(reg->get_line());
+            tmp += ": ";
+            tmp += i->get_ID();
+            tmp += " already declared on line ";
+            tmp += std::to_string(i->get_line());
+            
             semantic = true;
+
+            //for (auto j: semantic_text) {
+            //    if (j == tmp) { copy = true; break; }
+            //}
+            semantic_text.push_back(tmp);
+            //cout << "Line " << reg->get_line() << ": " << 
+            //i->get_ID() << " already declared on line " << i->get_line() << endl;
             return;
         }
     }
     this->regex.push_back(reg);
 }
 
+// Printing the matches found during the input text processing.
 void Parser::print_match() {
     for (int i = 0; i < real_accepted.size(); i++) {
         cout << real_accepted.at(i)->get_ID() << ", "; // Print token name
@@ -327,16 +473,18 @@ void Parser::print_match() {
     }
 }
 
+// Matching the input text against the compiled regular expressions and identifies the tokens present.
 void Parser::match(std::string raw_str) {
+
     // (1) At first, all regex are available to match string.
     curr_accepted = regex;
     real_accepted.clear(); // Reset "real_accepted"
     int len = raw_str.length() - 2; // Except for quotation marks
     string str = raw_str.substr(1, len); // Except for quotation marks
     vector<string> strs; // Substrings splited by whitespaces
-    //cout << "Original match: " << str << endl;
+
     split_string(str, strs, ' '); // Spliting by whitespaces
-    //for (auto iter: strs) { cout << "|" << iter << "|" << endl; }
+
     int start = 0; // Starting Position
     bool flag = false, restart_available = false;
     int restart_pos = 0;
@@ -344,44 +492,40 @@ void Parser::match(std::string raw_str) {
 
     // (2) Iteration
     for (auto iter: strs) {
-//arse target: " << iter << endl;
+
         start = restart_pos = 0;
         flag = restart_available = false;
         
         for (int i = 0; i < iter.length(); i++) {
-            //cout << "Iteration (" << iter << ")" << " - " << iter.at(i) << ", " << i << endl;
-            //cout << "Current accepted" << endl;
 
             for (auto reg: curr_accepted) {
-                //cout << "For Loop: " <<  reg->get_ID() << ", start = " << start << ", i = " << i << endl;
+
                 if (match_substr(reg, iter, start, i) == true) {
                     temp_accepted.push_back(reg);
-                    //cout << "Temp accepted: " << reg->get_ID() << endl;
+
                 }
             }
             
             // No match result -> retry with new position
             if (temp_accepted.size() == 0) {
-                //cout << "Flag: " << flag << ", restart_pos = " << restart_pos << endl;
+
                 if (i < iter.length() - 1) {
                     flag = true;
-                    //cout << "No match: " << iter.substr(start, i - start + 1) << endl;
-                    
+
                     temp_accepted.clear();
                     curr_accepted.clear();
                     curr_accepted = regex;
                     continue;
                 }
                 else if (i == iter.length() - 1) {
-                    //cout << "Restarts? (" << iter << ',' << iter.length() << ")" << " i = " << i << ", temp_accepted = " << temp_accepted.size() << endl;
+
                     i = restart_pos;
                     restart_pos = 0;
                     // No match result -> Print "ERROR" and Exit
                     if (flag == true && restart_available == false) { print_match(); cout << "ERROR" << endl; exit(1); }
-                    //cout << "Restarts!" << " i = " << i << ", temp_accepted = " << temp_accepted.size() << endl;
+
                     real_accepted.push_back(restart_temp.front());
                     match_str.push_back(iter.substr(start, i - start));
-                    //cout << "Add cut: " << restart_temp.front()->get_ID() << ", " << iter.substr(start, i - start) << endl;
                     start = i--; // New starting position
                     flag = true;
                     restart_available = false;
@@ -393,14 +537,14 @@ void Parser::match(std::string raw_str) {
             } else { flag = false; restart_available = true; restart_pos = i + 1; restart_temp = temp_accepted; }
 
             curr_accepted.clear(); // Throw out previous results
-            //curr_accepted = temp_accepted; // Copy the iteration set
+
             curr_accepted = regex;
 
             // Final iteration
             if (i == iter.length() - 1) {
                 real_accepted.push_back(temp_accepted.front());
                 match_str.push_back(iter.substr(start, i - start + 1));
-                //cout << "Add: " << temp_accepted.front() << ", " << iter.substr(start, i - start + 1) << endl;
+
             }
             temp_accepted.clear(); // Throw out copied results
         }
@@ -408,13 +552,13 @@ void Parser::match(std::string raw_str) {
     print_match();
 }
 
+// Attempting to match a substring of the input text with a given REG object.
 bool Parser::match_substr(REG* reg, std::string str, int start, int end) {
-    if (end - start < 0) { cerr << "Fatal Error (str: " << str << ", start = " << start << ", end = " << end << ")" << endl; exit(1); }
+
+    if (end - start < 0) { cout << "SNYTAX ERORR" << endl; exit(1); }
     bool flag = false;
     string tmp = str.substr(start, end - start + 1);
-    // Debug
-    //cout << reg->get_ID() << " Check for: " << str.substr(start, end - start + 1) << endl;
-    
+
     // Find path
     RegNode* iter = reg->start;
     if (iter_node(reg, iter, tmp, 0) > 0) { return true; }
@@ -422,7 +566,7 @@ bool Parser::match_substr(REG* reg, std::string str, int start, int end) {
 }
 
 /*  Class REG   */
-
+// Constructor for the REG class, initializes the REG object.
 REG::REG() : 
     start(nullptr), accept(nullptr), num(0), ID("") {}
 
@@ -435,6 +579,7 @@ REG::~REG() {
     }
 }
 
+// Creates a new node in the REG graph with specified labels for transitions.
 RegNode* REG::create_node(char first_label, char second_label) {
     RegNode* new_node = new RegNode();
     new_node->first_neighbor = nullptr;
@@ -445,6 +590,7 @@ RegNode* REG::create_node(char first_label, char second_label) {
     return new_node;
 }
 
+// Adds a new node to the REG graph, connecting it to specified neighbors with labeled transitions.
 void REG::add_node(
     RegNode* first_neighbor, RegNode* second_neighbor,
     char first_label, char second_label)    
@@ -454,10 +600,19 @@ void REG::add_node(
     new_node->second_neighbor = second_neighbor;
 }
 
+// Sets the unique identifier for this REG object.
 void REG::set_ID(std::string text) { this->ID = text; }
+
+// Sets the line number associated with this REG object. Useful for error reporting.
 void REG::set_line(int num) { this->num = num; }
+
+// Retrieves the line number associated with this REG object.
 int REG::get_line() { return this->num; }
+
+// Retrieves the unique identifier of this REG object.
 std::string REG::get_ID() { return this->ID; }
+
+// Printing all nodes in the REG object for debugging purposes, showing each node's transitions.
 void REG::print_node() {
     cout << "Printing all nodes..." << endl;
     for (auto i: nodes) { 
@@ -466,6 +621,8 @@ void REG::print_node() {
     }
 }
 
+// Checking when if there exists an epsilon transition (indicated by '_') from the given node to the accepting state.
+// check_epsilon_node() also recursively explores all paths starting from the given node to determine if an epsilon path exists.
 int REG::check_epsilon_node(RegNode* node) {
     int res = 0;
     if (this->accept == node) { return 1; }
@@ -484,10 +641,12 @@ int REG::check_epsilon_node(RegNode* node) {
 }
 
 /*  General Functions   */
+// Traversing the REG graph to check if the given string matches the regular expression represented by the REG.
+// iter_node() also uses recursion to explore all possible paths through the graph.
 int iter_node(REG* reg, RegNode* iter, string str, int pos) {
     int res = 0;
     if (pos == str.length()) { 
-        //cout << "Checking '" << str << "': " << str.at(pos - 1) << endl; 
+
         if (reg->accept == iter) { return 1; }
         if (reg->check_epsilon_node(iter) > 0) { return 1; }
         return 0;
@@ -514,6 +673,8 @@ int iter_node(REG* reg, RegNode* iter, string str, int pos) {
     return res;
 }
 
+// Splits the input string into a vector of substrings based on a delimiter character.
+// Leading, and trailing whitespaces characters are ignored.
 size_t split_string(std::string &str, std::vector<std::string> &strs, char ch)
 {
     int start = 0, end = str.size() - 1;
@@ -549,7 +710,6 @@ size_t split_string(std::string &str, std::vector<std::string> &strs, char ch)
 // as it is and then run ./a.out < tests/test0.txt to see what this function does
 // This function is not needed for your solution and it is only provided to
 // illustrate the basic functionality of getToken() and the Token type.
-
 void Parser::readAndPrintAllInput()
 {
     Token t;
@@ -579,7 +739,7 @@ int main()
 
     
     parser.parse_input();
-    //parser.reset();
-    //parser.readAndPrintAllInput();
+    // parser.reset();
+    // parser.readAndPrintAllInput();
 	return EXIT_SUCCESS;
 }
